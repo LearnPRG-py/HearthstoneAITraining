@@ -133,7 +133,9 @@ def train_callback(epochs, batch_size, reduced_training=False):
     if reduced_training:
         callbacks.append(CustomEpochCallback())
 
-    history = model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks)
+    history = model.fit(
+        train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks
+    )
 
     plt.figure(figsize=(12, 4))
     plt.subplot(1, 2, 1)
