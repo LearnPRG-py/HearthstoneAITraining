@@ -30,10 +30,7 @@ CPU = BaseOptions.Delegate.CPU
 
 def make_options(delegate=GPU):
     hand_options = HandLandmarkerOptions(
-        base_options=BaseOptions(
-            model_asset_path=HAND_MODEL,
-            delegate=delegate
-        ),
+        base_options=BaseOptions(model_asset_path=HAND_MODEL, delegate=delegate),
         running_mode=VisionRunningMode.VIDEO,
         num_hands=2,
         min_hand_detection_confidence=0.5,
@@ -108,19 +105,11 @@ def process_video(video_path, output_dir, hand_lm, global_ts_ms):
             frame_rgba = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGBA)
             frame_rgba = np.ascontiguousarray(frame_rgba)
 
-            mp_image = mp.Image(
-                image_format=mp.ImageFormat.SRGBA,
-                data=frame_rgba
-            )
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGBA, data=frame_rgba)
 
-            timestamp_ms = global_ts_ms + int(
-                frame_idx / src_fps * 1000
-            )
+            timestamp_ms = global_ts_ms + int(frame_idx / src_fps * 1000)
 
-            result = hand_lm.detect_for_video(
-                mp_image,
-                timestamp_ms
-            )
+            result = hand_lm.detect_for_video(mp_image, timestamp_ms)
 
             hands_out.append(extract_hands(result))
 
@@ -152,32 +141,17 @@ def _run(video_paths, hand_lm):
 
     use_tqdm = sys.stdout.isatty()
 
-    iterator = (
-        tqdm(video_paths)
-        if use_tqdm
-        else video_paths
-    )
+    iterator = tqdm(video_paths) if use_tqdm else video_paths
 
     for idx, vp in enumerate(iterator):
-        result, global_ts_ms = process_video(
-            vp,
-            OUTPUT_DIR,
-            hand_lm,
-            global_ts_ms
-        )
+        result, global_ts_ms = process_video(vp, OUTPUT_DIR, hand_lm, global_ts_ms)
 
         if use_tqdm:
-            if not (
-                result.startswith("OK")
-                or result.startswith("SKIP")
-            ):
+            if not (result.startswith("OK") or result.startswith("SKIP")):
                 tqdm.write(result)
         else:
             if idx % 10 == 0:
-                print(
-                    f"[{idx}/{len(video_paths)}] {result}",
-                    flush=True
-                )
+                print(f"[{idx}/{len(video_paths)}] {result}", flush=True)
 
     print("Done.", flush=True)
 
@@ -197,10 +171,7 @@ def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     video_paths = sorted(
-        glob.glob(
-            os.path.join(INPUT_DIR, "**", "*.mp4"),
-            recursive=True
-        )
+        glob.glob(os.path.join(INPUT_DIR, "**", "*.mp4"), recursive=True)
     )
 
     total_videos = len(video_paths)
@@ -213,9 +184,7 @@ def main():
 
     print(f"Found {total_videos} total videos")
     print(
-        f"Processing chunk: "
-        f"{start_idx}:{end_idx} "
-        f"({len(video_chunk)} videos)"
+        f"Processing chunk: " f"{start_idx}:{end_idx} " f"({len(video_chunk)} videos)"
     )
 
     if len(video_chunk) == 0:
