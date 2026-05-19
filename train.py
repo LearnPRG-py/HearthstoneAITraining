@@ -104,18 +104,18 @@ def train_callback(epochs, batch_size, reduced_training=False):
 
     train_ds = (
         train_ds.shuffle(4096)
-        .map(tf_process_sample, num_parallel_calls=1)
+        .map(tf_process_sample, num_parallel_calls=8)
         .batch(batch_size)
         .prefetch(1)
     )
 
     val_ds = (
-        val_ds.map(tf_process_sample, num_parallel_calls=1)
+        val_ds.map(tf_process_sample, num_parallel_calls=8)
         .batch(batch_size)
         .prefetch(1)
     )
 
-    test_ds = test_ds.map(tf_process_sample, num_parallel_calls=1).batch(batch_size)
+    test_ds = test_ds.map(tf_process_sample, num_parallel_calls=8).batch(batch_size)
 
     checkpoint = ModelCheckpoint(
         filepath="best_model.keras",
