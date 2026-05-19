@@ -155,8 +155,10 @@ model = models.Sequential(
         layers.Dropout(0.4),
         # Dense layers: Combine all learned features to make classification
         layers.Dense(256, activation="relu"),
+        layers.BatchNormalization(),  # FIXED: Added to stabilize features before the massive class pool
         layers.Dropout(0.3),
         layers.Dense(128, activation="relu"),
+        layers.Dropout(0.2),  # FIXED: Protects against overfitting on specific words
         # Output layer: One probability per sign (2208 possible signs)
         layers.Dense(num_classes, activation="softmax"),
     ]

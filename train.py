@@ -2,8 +2,10 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
 gpus = tf.config.list_physical_devices("GPU")
 print("GPUs:", gpus)
@@ -115,9 +117,43 @@ def train_callback(epochs, batch_size, reduced_training=False):
 
     test_ds = test_ds.map(tf_process_sample, num_parallel_calls=1).batch(batch_size)
 
-    callbacks = [CustomEpochCallback()] if reduced_training else []
+    checkpoint = ModelCheckpoint(
+        filepath="best_model.keras",
+        monitor="val_accuracy",
+        mode="max",
+        save_best_only=True,
+        verbose=1,
+    )
 
-    model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks)
+    lr_scheduler = ReduceLROnPlateau(
+        monitor="val_loss", factor=0.5, patience=10, min_lr=1e-6, verbose=1
+    )
+
+    callbacks = [checkpoint, lr_scheduler]
+    if reduced_training:
+        callbacks.append(CustomEpochCallback())
+
+    history = model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks)
+
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history["loss"], label="Train Loss")
+    plt.plot(history.history["val_loss"], label="Val Loss")
+    plt.title("Loss History")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history["accuracy"], label="Train Acc")
+    plt.plot(history.history["val_accuracy"], label="Val Acc")
+    plt.title("Accuracy History")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("training_plots.png")
+    plt.close()
 
     loss, accuracy = model.evaluate(test_ds, verbose=1)
     print("Test Results returned:")
