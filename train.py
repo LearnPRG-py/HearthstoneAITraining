@@ -143,8 +143,13 @@ def train_callback(epochs, batch_size, reduced_training=False):
             layer.rate = 0.2
         elif isinstance(layer, layers.Bidirectional):
             inner_layer = layer.inner_layer if hasattr(layer, 'inner_layer') else layer._layers[0]
-            if hasattr(inner_layer, 'dropout'):
-                inner_layer.dropout = 0.2
+            # Bypass the property setter by modifying the underlying config dict directly
+            if 'dropout' in inner_layer.__dict__:
+                inner_layer.__dict__['dropout'] = 0.2
+            # Modify the public configuration property so it serializes correctly on save
+            if hasattr(inner_layer, 'get_config'):
+                cfg = inner_layer.get_config()
+                cfg['dropout'] = 0.2
 
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
