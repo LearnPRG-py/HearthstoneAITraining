@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+from tensorflow.keras.models import load_model
+from tensorflow.keras import layers
 
 gpus = tf.config.list_physical_devices("GPU")
 print("GPUs:", gpus)
@@ -118,7 +120,7 @@ def train_callback(epochs, batch_size, reduced_training=False):
     test_ds = test_ds.map(tf_process_sample, num_parallel_calls=8).batch(batch_size)
 
     checkpoint = ModelCheckpoint(
-        filepath="best_model.keras",
+        filepath="best_model_v3.keras",
         monitor="val_accuracy",
         mode="max",
         save_best_only=True,
@@ -132,6 +134,22 @@ def train_callback(epochs, batch_size, reduced_training=False):
     callbacks = [checkpoint, lr_scheduler]
     if reduced_training:
         callbacks.append(CustomEpochCallback())
+    print("Loading the best model...")
+    model = load_model("best_model_v2.keras")
+
+    # Reduce dropout and recompile with a higher learning rate for fine-tuning
+    for layer in model.layers:
+        if isinstance(layer, layers.Dropout):
+            layer.rate = 0.2
+        elif isinstance(layer, layers.Bidirectional):
+            if hasattr(layer.layer, 'dropout'):
+                layer.layer.dropout = 0.2
+
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )    
 
     history = model.fit(
         train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks
