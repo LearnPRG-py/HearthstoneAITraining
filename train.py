@@ -142,8 +142,9 @@ def train_callback(epochs, batch_size, reduced_training=False):
         if isinstance(layer, layers.Dropout):
             layer.rate = 0.2
         elif isinstance(layer, layers.Bidirectional):
-            if hasattr(layer.layer, 'dropout'):
-                layer.layer.dropout = 0.2
+            inner_layer = layer.inner_layer if hasattr(layer, 'inner_layer') else layer._layers[0]
+            if hasattr(inner_layer, 'dropout'):
+                inner_layer.dropout = 0.2
 
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
