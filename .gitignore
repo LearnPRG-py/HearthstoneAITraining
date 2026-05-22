@@ -2,3 +2,4 @@
 .DS_Store
 *.log
 *.pyc
+training_log.txt
