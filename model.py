@@ -167,7 +167,7 @@ model = models.Sequential(
 
 # Compile the model: Set up how it learns
 model.compile(
-    optimizer=Adam(learning_rate=1e-3),  # Set the learning rate for training
+    optimizer=Adam(learning_rate=1.2e-3),  # Set the learning rate for training
     loss="sparse_categorical_crossentropy",  # Measures "how wrong" predictions are
     metrics=["accuracy"],  # Track % of correct predictions
 )
