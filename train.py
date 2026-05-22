@@ -73,6 +73,7 @@ def tf_process_sample(path, label):
 
 def train_callback(epochs, batch_size, reduced_training=False, CI=False):
     from model import model
+
     data = pd.read_csv("data.csv")
     data = data.dropna(subset=["videos"])
 
