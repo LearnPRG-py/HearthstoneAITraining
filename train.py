@@ -72,6 +72,7 @@ def tf_process_sample(path, label):
 
 
 def train_callback(epochs, batch_size, reduced_training=False, CI=False):
+    from model import model
     data = pd.read_csv("data.csv")
     data = data.dropna(subset=["videos"])
 
@@ -135,7 +136,6 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
         callbacks = [lr_scheduler, CustomEpochCallback()]
     else:
         callbacks = [checkpoint, lr_scheduler]
-
 
     if not CI and not reduced_training:
         print("Loading the best model...")
