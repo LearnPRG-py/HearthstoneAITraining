@@ -121,7 +121,7 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
 
     test_ds = test_ds.map(tf_process_sample, num_parallel_calls=8).batch(batch_size)
 
-    if not CI and not reduced_training:
+    if (not CI) and (not reduced_training):
         checkpoint = ModelCheckpoint(
             filepath="best_model_v3.keras",
             monitor="val_accuracy",
@@ -138,7 +138,7 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
     else:
         callbacks = [checkpoint, lr_scheduler]
 
-    if not CI and not reduced_training:
+    if (not CI) and (not reduced_training):
         print("Loading the best model...")
         model = load_model("best_model_v2.keras")
 
@@ -164,7 +164,7 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
         train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks
     )
 
-    if not CI and not reduced_training:
+    if (not CI) and (not reduced_training):
         plt.figure(figsize=(12, 4))
         plt.subplot(1, 2, 1)
         plt.plot(history.history["loss"], label="Train Loss")
