@@ -131,10 +131,11 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
     lr_scheduler = ReduceLROnPlateau(
         monitor="val_loss", factor=0.5, patience=10, min_lr=1e-6, verbose=1
     )
+    if CI or reduced_training:
+        callbacks = [lr_scheduler, CustomEpochCallback()]
+    else:
+        callbacks = [checkpoint, lr_scheduler]
 
-    callbacks = [checkpoint, lr_scheduler]
-    if reduced_training:
-        callbacks.append(CustomEpochCallback())
 
     if not CI and not reduced_training:
         print("Loading the best model...")
