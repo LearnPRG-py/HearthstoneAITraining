@@ -62,7 +62,7 @@ def tf_process_sample(path, label):
     return x, y
 
 
-def train_callback(epochs, batch_size, reduced_training=False):
+def train_callback(epochs, batch_size, reduced_training=False, CI=False):
     data = pd.read_csv("data.csv")
     data = data.dropna(subset=["videos"])
 
@@ -82,23 +82,14 @@ def train_callback(epochs, batch_size, reduced_training=False):
         videos = reduced_videos
         labels = reduced_labels
 
+    multiplier = 4 if CI else 1
     X_run, X_test, y_run, y_test = train_test_split(
-        videos, labels, test_size=0.01, random_state=42
+        videos, labels, test_size=0.01 * multiplier, random_state=42
     )
 
     X_train, X_val, y_train, y_val = train_test_split(
-        X_run, y_run, test_size=0.03, random_state=42
+        X_run, y_run, test_size=0.03 * multiplier, random_state=42
     )
-
-    import time
-    import numpy as np
-
-    t0 = time.time()
-    for i in range(20):
-        p = str(videos[i])
-        print("loading:", p)
-        _ = np.load(p)
-    print("DONE loading test batch in:", time.time() - t0)
 
     train_ds = tf.data.Dataset.from_tensor_slices((X_train, y_train))
     val_ds = tf.data.Dataset.from_tensor_slices((X_val, y_val))
@@ -119,13 +110,14 @@ def train_callback(epochs, batch_size, reduced_training=False):
 
     test_ds = test_ds.map(tf_process_sample, num_parallel_calls=8).batch(batch_size)
 
-    checkpoint = ModelCheckpoint(
-        filepath="best_model_v3.keras",
-        monitor="val_accuracy",
-        mode="max",
-        save_best_only=True,
-        verbose=1,
-    )
+    if not CI and not reduced_training:
+        checkpoint = ModelCheckpoint(
+            filepath="best_model_v3.keras",
+            monitor="val_accuracy",
+            mode="max",
+            save_best_only=True,
+            verbose=1,
+        )
 
     lr_scheduler = ReduceLROnPlateau(
         monitor="val_loss", factor=0.5, patience=10, min_lr=1e-6, verbose=1
@@ -134,28 +126,28 @@ def train_callback(epochs, batch_size, reduced_training=False):
     callbacks = [checkpoint, lr_scheduler]
     if reduced_training:
         callbacks.append(CustomEpochCallback())
-    print("Loading the best model...")
-    model = load_model("best_model_v2.keras")
 
-    # Reduce dropout and recompile with a higher learning rate for fine-tuning
-    for layer in model.layers:
-        if isinstance(layer, layers.Dropout):
-            layer.rate = 0.2
-        elif isinstance(layer, layers.Bidirectional):
-            inner_layer = layer.inner_layer if hasattr(layer, 'inner_layer') else layer._layers[0]
-            # Bypass the property setter by modifying the underlying config dict directly
-            if 'dropout' in inner_layer.__dict__:
-                inner_layer.__dict__['dropout'] = 0.2
-            # Modify the public configuration property so it serializes correctly on save
-            if hasattr(inner_layer, 'get_config'):
-                cfg = inner_layer.get_config()
-                cfg['dropout'] = 0.2
+    if not CI and not reduced_training:
+        print("Loading the best model...")
+        model = load_model("best_model_v2.keras")
 
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
-        loss='sparse_categorical_crossentropy',
-        metrics=['accuracy']
-    )    
+        # Reduce dropout and recompile with a higher learning rate for fine-tuning
+        for layer in model.layers:
+            if isinstance(layer, layers.Dropout):
+                layer.rate = 0.2
+            elif isinstance(layer, layers.Bidirectional):
+                inner_layer = (
+                    layer.inner_layer
+                    if hasattr(layer, "inner_layer")
+                    else layer._layers[0]
+                )
+                # Bypass the property setter by modifying the underlying config dict directly
+                if "dropout" in inner_layer.__dict__:
+                    inner_layer.__dict__["dropout"] = 0.2
+                # Modify the public configuration property so it serializes correctly on save
+                if hasattr(inner_layer, "get_config"):
+                    cfg = inner_layer.get_config()
+                    cfg["dropout"] = 0.2
 
     history = model.fit(
         train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks
@@ -188,4 +180,6 @@ def train_callback(epochs, batch_size, reduced_training=False):
     return loss, accuracy
 
 
-a, b = train_callback(epochs=100, batch_size=256, reduced_training=False)
+# Not for continuous integration runs, but useful for local testing and experimentation
+# a, b = train_callback(epochs=100, batch_size=256, reduced_training=False)
+# bestmodel is based on the full 100 epoch training run while CI uses a reduced training run with only 10 epochs and runs on GH actions.
