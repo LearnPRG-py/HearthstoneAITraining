@@ -12,6 +12,7 @@ from tensorflow.keras import layers
 gpus = tf.config.list_physical_devices("GPU")
 print("GPUs:", gpus)
 tf.random.set_seed(42)
+tf.config.experimental.enable_op_determinism()
 
 if gpus:
     for gpu in gpus:
@@ -107,19 +108,31 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
     test_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test))
 
     train_ds = (
-        train_ds.shuffle(4096)
-        .map(tf_process_sample, num_parallel_calls=8)
+        train_ds.shuffle(4096, seed=42)
+        .map(
+            tf_process_sample,
+            num_parallel_calls=8,
+            deterministic=True,
+        )
         .batch(batch_size)
         .prefetch(1)
     )
 
     val_ds = (
-        val_ds.map(tf_process_sample, num_parallel_calls=8)
+        val_ds.map(
+            tf_process_sample,
+            num_parallel_calls=8,
+            deterministic=True,
+        )
         .batch(batch_size)
         .prefetch(1)
     )
 
-    test_ds = test_ds.map(tf_process_sample, num_parallel_calls=8).batch(batch_size)
+    test_ds = test_ds.map(
+        tf_process_sample,
+        num_parallel_calls=8,
+        deterministic=True,
+    ).batch(batch_size)
 
     if (not CI) and (not reduced_training):
         checkpoint = ModelCheckpoint(
