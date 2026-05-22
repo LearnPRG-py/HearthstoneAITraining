@@ -3,3 +3,5 @@
 *.log
 *.pyc
 training_log.txt
+training_plots.png
+*.png

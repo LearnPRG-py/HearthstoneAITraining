@@ -12,6 +12,7 @@ from tensorflow.keras import layers
 gpus = tf.config.list_physical_devices("GPU")
 print("GPUs:", gpus)
 tf.random.set_seed(42)
+tf.config.experimental.enable_op_determinism()
 
 if gpus:
     for gpu in gpus:
@@ -72,6 +73,8 @@ def tf_process_sample(path, label):
 
 
 def train_callback(epochs, batch_size, reduced_training=False, CI=False):
+    from model import model
+
     data = pd.read_csv("data.csv")
     data = data.dropna(subset=["videos"])
 
@@ -105,21 +108,33 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
     test_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test))
 
     train_ds = (
-        train_ds.shuffle(4096)
-        .map(tf_process_sample, num_parallel_calls=8)
+        train_ds.shuffle(4096, seed=42)
+        .map(
+            tf_process_sample,
+            num_parallel_calls=8,
+            deterministic=True,
+        )
         .batch(batch_size)
         .prefetch(1)
     )
 
     val_ds = (
-        val_ds.map(tf_process_sample, num_parallel_calls=8)
+        val_ds.map(
+            tf_process_sample,
+            num_parallel_calls=8,
+            deterministic=True,
+        )
         .batch(batch_size)
         .prefetch(1)
     )
 
-    test_ds = test_ds.map(tf_process_sample, num_parallel_calls=8).batch(batch_size)
+    test_ds = test_ds.map(
+        tf_process_sample,
+        num_parallel_calls=8,
+        deterministic=True,
+    ).batch(batch_size)
 
-    if not CI and not reduced_training:
+    if (not CI) and (not reduced_training):
         checkpoint = ModelCheckpoint(
             filepath="best_model_v3.keras",
             monitor="val_accuracy",
@@ -136,8 +151,7 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
     else:
         callbacks = [checkpoint, lr_scheduler]
 
-
-    if not CI and not reduced_training:
+    if (not CI) and (not reduced_training):
         print("Loading the best model...")
         model = load_model("best_model_v2.keras")
 
@@ -163,25 +177,26 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
         train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks
     )
 
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history["loss"], label="Train Loss")
-    plt.plot(history.history["val_loss"], label="Val Loss")
-    plt.title("Loss History")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
-    plt.legend()
+    if (not CI) and (not reduced_training):
+        plt.figure(figsize=(12, 4))
+        plt.subplot(1, 2, 1)
+        plt.plot(history.history["loss"], label="Train Loss")
+        plt.plot(history.history["val_loss"], label="Val Loss")
+        plt.title("Loss History")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.legend()
 
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history["accuracy"], label="Train Acc")
-    plt.plot(history.history["val_accuracy"], label="Val Acc")
-    plt.title("Accuracy History")
-    plt.xlabel("Epoch")
-    plt.ylabel("Accuracy")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("training_plots.png")
-    plt.close()
+        plt.subplot(1, 2, 2)
+        plt.plot(history.history["accuracy"], label="Train Acc")
+        plt.plot(history.history["val_accuracy"], label="Val Acc")
+        plt.title("Accuracy History")
+        plt.xlabel("Epoch")
+        plt.ylabel("Accuracy")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("training_plots.png")
+        plt.close()
 
     loss, accuracy = model.evaluate(test_ds, verbose=1)
     print("Test Results returned:")
