@@ -27,14 +27,23 @@ print("Model loaded successfully!")
 
 class CustomEpochCallback(tf.keras.callbacks.Callback):
     def on_epoch_begin(self, epoch, logs=None):
-        print(f"\n🚀 Starting epoch {epoch + 1}")
+        msg = f"\n🚀 Starting epoch {epoch + 1}"
+        print(msg)
+
+        with open("training_log.txt", "a") as f:
+            f.write(msg + "\n")
 
     def on_epoch_end(self, epoch, logs=None):
-        print(
+        msg = (
             f"✅ Epoch {epoch + 1} complete!"
             f"\nTraining:\nLoss: {logs['loss']:.4f}, Accuracy: {logs['accuracy']:.4f}"
-            f"\nValidation:\nLoss: {logs['val_loss']:.4f}, Accuracy: {logs['val_accuracy']:.4f}"
+            f"\nValidation:\nLoss: {logs['val_loss']:.4f}, Accuracy: {logs['val_accuracy']:.4f}\n"
         )
+
+        print(msg)
+
+        with open("training_log.txt", "a") as f:
+            f.write(msg + "\n")
 
 
 def process_sample(path, label):
