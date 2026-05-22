@@ -240,7 +240,12 @@ try:
     run(["git", "commit", "-m", commit_message])
     run(["git", "push", "origin", "HEAD:staging"])
     print("[+] Push complete.")
-    print("[+] Change has been successfully rebased and submitted as (git ID)")
+    git_id = run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        capture=True
+    )
+
+    print(f"[+] Change has been successfully rebased and submitted as {git_id} 🚀🎉")
 
 except subprocess.CalledProcessError as e:
     print(f"[ERROR] Command failed: {e}")
