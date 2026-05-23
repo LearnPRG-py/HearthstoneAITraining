@@ -130,36 +130,37 @@ model = models.Sequential(
     [
         # Input layer: Receives the hand landmark data
         layers.Input(shape=(max_frames, 2, 20, 3)),
-        # Flatten spatial dimensions: (256, 2, 20, 3) → (256, 120)
+        # Flatten spatial dimensions: (max_frames, 2, 20, 3) → (max_frames, 120)
         # This converts 3D hand positions into a flat sequence for Conv1D
         layers.Reshape((max_frames, 2 * 20 * 3)),
         # First convolutional block: Learn short-term motion patterns
         layers.Conv1D(64, kernel_size=5, activation="relu", padding="same"),
         layers.BatchNormalization(),
-        layers.MaxPooling1D(pool_size=2),  # 256 → 128 frames
-        layers.Dropout(0.3),
+        layers.MaxPooling1D(pool_size=2),  # max_frames → max_frames/2
+        layers.Dropout(0.2),  # Reduced from 0.3 — less signal killed early on
         # Second convolutional block: Learn more complex motion combinations
         layers.Conv1D(128, kernel_size=5, activation="relu", padding="same"),
         layers.BatchNormalization(),
-        layers.MaxPooling1D(pool_size=2),  # 128 → 64 frames
-        layers.Dropout(0.3),
+        layers.MaxPooling1D(pool_size=2),  # → max_frames/4
+        layers.Dropout(0.2),  # Reduced from 0.3
         # Third convolutional block: Learn high-level gesture components
         layers.Conv1D(256, kernel_size=3, activation="relu", padding="same"),
         layers.BatchNormalization(),
-        layers.MaxPooling1D(pool_size=2),  # 64 → 32 frames
-        layers.Dropout(0.4),
+        layers.MaxPooling1D(pool_size=2),  # → max_frames/8
+        layers.Dropout(0.3),  # Reduced from 0.4
         # Bidirectional LSTM: Remember context from throughout the video
         layers.Bidirectional(layers.LSTM(128, return_sequences=True)),
-        layers.Dropout(0.4),
-        # Second LSTM: Final temporal understanding (no return_sequences = output final state only)
+        layers.Dropout(0.25),  # Reduced from 0.4 — critical for LSTM gradient flow
+        # Second LSTM: Final temporal understanding (outputs final state only)
         layers.Bidirectional(layers.LSTM(64)),
-        layers.Dropout(0.4),
-        # Dense layers: Combine all learned features to make classification
+        layers.Dropout(0.25),  # Reduced from 0.4
+        # Dense classification head: Combine learned features for 2208-class output
+        # 512 units gives the softmax more representational room for a large class pool
+        layers.Dense(512, activation="relu"),
+        layers.BatchNormalization(),
+        layers.Dropout(0.2),  # Reduced from 0.3
         layers.Dense(256, activation="relu"),
-        layers.BatchNormalization(),  # FIXED: Added to stabilize features before the massive class pool
-        layers.Dropout(0.3),
-        layers.Dense(128, activation="relu"),
-        layers.Dropout(0.2),  # FIXED: Protects against overfitting on specific words
+        layers.Dropout(0.2),  # Kept light to protect against word-specific overfit
         # Output layer: One probability per sign (2208 possible signs)
         layers.Dense(num_classes, activation="softmax"),
     ]
@@ -167,9 +168,9 @@ model = models.Sequential(
 
 # Compile the model: Set up how it learns
 model.compile(
-    optimizer=Adam(learning_rate=1.2e-3),  # Set the learning rate for training
-    loss="sparse_categorical_crossentropy",  # Measures "how wrong" predictions are
-    metrics=["accuracy"],  # Track % of correct predictions
+    optimizer=Adam(learning_rate=1.2e-3),  # LR decay handled externally
+    loss="sparse_categorical_crossentropy",
+    metrics=["accuracy"],
 )
 
 model.summary()

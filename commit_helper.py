@@ -240,10 +240,7 @@ try:
     run(["git", "commit", "-m", commit_message])
     run(["git", "push", "origin", "HEAD:staging"])
     print("[+] Push complete.")
-    git_id = run(
-        ["git", "rev-parse", "--short", "HEAD"],
-        capture=True
-    )
+    git_id = run(["git", "rev-parse", "--short", "HEAD"], capture=True)
 
     print(f"[+] Change has been successfully rebased and submitted as {git_id} 🚀🎉")
 
