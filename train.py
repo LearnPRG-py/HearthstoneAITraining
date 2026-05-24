@@ -9,6 +9,8 @@ from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.keras.models import load_model
 from tensorflow.keras import layers
 
+print("Import done!")
+
 gpus = tf.config.list_physical_devices("GPU")
 print("GPUs:", gpus)
 tf.random.set_seed(42)
@@ -120,7 +122,7 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
             deterministic=True,
         )
         .batch(batch_size)
-        .prefetch(1)
+        .prefetch(8)
     )
 
     val_ds = (
@@ -130,7 +132,7 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
             deterministic=True,
         )
         .batch(batch_size)
-        .prefetch(1)
+        .prefetch(8)
     )
 
     test_ds = test_ds.map(
