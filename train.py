@@ -19,6 +19,7 @@ if gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
 
 MAX_FRAMES = 256
+NEGATE_XZ_COORDS = True
 
 print("Loading model architecture from model.py...")
 from model import model
@@ -59,6 +60,10 @@ def process_sample(path, label):
         padding_shape = (MAX_FRAMES - T, *hands.shape[1:])
         padding = np.zeros(padding_shape, dtype=np.float32)
         hands = np.concatenate([hands, padding], axis=0)
+
+    if NEGATE_XZ_COORDS:
+        hands[..., 0] *= -1
+        hands[..., 2] *= -1
 
     return hands.astype(np.float32), np.int32(label)
 
@@ -151,7 +156,8 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
     else:
         callbacks = [checkpoint, lr_scheduler]
 
-    if (not CI) and (not reduced_training):
+    # No best model as of yet
+    if (not CI) and (not reduced_training) and False:
         print("Loading the best model...")
         model = load_model("best_model_v2.keras")
 
