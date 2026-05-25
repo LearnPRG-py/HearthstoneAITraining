@@ -159,27 +159,27 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
         callbacks = [checkpoint, lr_scheduler]
 
     # No best model as of yet
-    if (not CI) and (not reduced_training) and False:
+    if (not CI) and (not reduced_training):
         print("Loading the best model...")
-        model = load_model("best_model_v2.keras")
+        model = load_model("best_model_v3.keras")
 
-        # Reduce dropout and recompile with a higher learning rate for fine-tuning
-        for layer in model.layers:
-            if isinstance(layer, layers.Dropout):
-                layer.rate = 0.2
-            elif isinstance(layer, layers.Bidirectional):
-                inner_layer = (
-                    layer.inner_layer
-                    if hasattr(layer, "inner_layer")
-                    else layer._layers[0]
-                )
-                # Bypass the property setter by modifying the underlying config dict directly
-                if "dropout" in inner_layer.__dict__:
-                    inner_layer.__dict__["dropout"] = 0.2
-                # Modify the public configuration property so it serializes correctly on save
-                if hasattr(inner_layer, "get_config"):
-                    cfg = inner_layer.get_config()
-                    cfg["dropout"] = 0.2
+        # # Reduce dropout and recompile with a higher learning rate for fine-tuning
+        # for layer in model.layers:
+        #     if isinstance(layer, layers.Dropout):
+        #         layer.rate = 0.2
+        #     elif isinstance(layer, layers.Bidirectional):
+        #         inner_layer = (
+        #             layer.inner_layer
+        #             if hasattr(layer, "inner_layer")
+        #             else layer._layers[0]
+        #         )
+        #         # Bypass the property setter by modifying the underlying config dict directly
+        #         if "dropout" in inner_layer.__dict__:
+        #             inner_layer.__dict__["dropout"] = 0.2
+        #         # Modify the public configuration property so it serializes correctly on save
+        #         if hasattr(inner_layer, "get_config"):
+        #             cfg = inner_layer.get_config()
+        #             cfg["dropout"] = 0.2
 
     history = model.fit(
         train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks
