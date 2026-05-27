@@ -8,6 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.keras.models import load_model
 from tensorflow.keras import layers
+import os
 
 print("Import done!")
 
@@ -79,7 +80,27 @@ def tf_process_sample(path, label):
     return x, y
 
 
-def train_callback(epochs, batch_size, reduced_training=False, CI=False):
+def compute_topk_accuracy(model, dataset, ks=(1, 5, 10)):
+    all_labels, all_logits = [], []
+    for x_batch, y_batch in dataset:
+        all_logits.append(model(x_batch, training=False).numpy())
+        all_labels.append(y_batch.numpy())
+    all_logits = np.concatenate(all_logits, axis=0)
+    all_labels = np.concatenate(all_labels, axis=0)
+    sorted_preds = np.argsort(all_logits, axis=1)[:, ::-1]
+    for k in ks:
+        correct = np.any(sorted_preds[:, :k] == all_labels[:, None], axis=1).sum()
+        print(f"Top-{k} Accuracy: {correct / len(all_labels) * 100:.2f}%")
+
+
+def train_callback(
+    epochs,
+    batch_size,
+    reduced_training=False,
+    CI=False,
+    disable_training=False,
+    evaluate_model=False,
+):
     from model import model
 
     data = pd.read_csv("data.csv")
@@ -158,10 +179,15 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
     else:
         callbacks = [checkpoint, lr_scheduler]
 
-    # No best model as of yet
-    if (not CI) and (not reduced_training):
-        print("Loading the best model...")
-        model = load_model("best_model_v3.keras")
+    if disable_training:
+        print("Loading best_model_final.keras for evaluation only...")
+        model = load_model("best_model_final.keras")
+    elif (not CI) and (not reduced_training):
+        print("Loading the best model to resume training")
+        if os.path.exists("best_model_v3.keras"):
+            model = load_model("best_model_v3.keras")
+        else:
+            print("No checkpoint found, starting fresh training.")
 
         # # Reduce dropout and recompile with a higher learning rate for fine-tuning
         # for layer in model.layers:
@@ -181,34 +207,38 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
         #             cfg = inner_layer.get_config()
         #             cfg["dropout"] = 0.2
 
-    history = model.fit(
-        train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks
-    )
+    if not disable_training:
+        history = model.fit(
+            train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks
+        )
 
-    if (not CI) and (not reduced_training):
-        plt.figure(figsize=(12, 4))
-        plt.subplot(1, 2, 1)
-        plt.plot(history.history["loss"], label="Train Loss")
-        plt.plot(history.history["val_loss"], label="Val Loss")
-        plt.title("Loss History")
-        plt.xlabel("Epoch")
-        plt.ylabel("Loss")
-        plt.legend()
+        if (not CI) and (not reduced_training):
+            plt.figure(figsize=(12, 4))
+            plt.subplot(1, 2, 1)
+            plt.plot(history.history["loss"], label="Train Loss")
+            plt.plot(history.history["val_loss"], label="Val Loss")
+            plt.title("Loss History")
+            plt.xlabel("Epoch")
+            plt.ylabel("Loss")
+            plt.legend()
 
-        plt.subplot(1, 2, 2)
-        plt.plot(history.history["accuracy"], label="Train Acc")
-        plt.plot(history.history["val_accuracy"], label="Val Acc")
-        plt.title("Accuracy History")
-        plt.xlabel("Epoch")
-        plt.ylabel("Accuracy")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("training_plots.png")
-        plt.close()
+            plt.subplot(1, 2, 2)
+            plt.plot(history.history["accuracy"], label="Train Acc")
+            plt.plot(history.history["val_accuracy"], label="Val Acc")
+            plt.title("Accuracy History")
+            plt.xlabel("Epoch")
+            plt.ylabel("Accuracy")
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig("training_plots.png")
+            plt.close()
 
     loss, accuracy = model.evaluate(test_ds, verbose=1)
     print("Test Results returned:")
     print("Loss: {:.4f}, Accuracy: {:.4f}".format(loss, accuracy))
+
+    if evaluate_model or disable_training:
+        compute_topk_accuracy(model, test_ds)
 
     return loss, accuracy
 
@@ -216,3 +246,4 @@ def train_callback(epochs, batch_size, reduced_training=False, CI=False):
 # Not for continuous integration runs, but useful for local testing and experimentation
 # a, b = train_callback(epochs=100, batch_size=256, reduced_training=False)
 # bestmodel is based on the full 100 epoch training run while CI uses a reduced training run with only 10 epochs and runs on GH actions.
+
