@@ -244,6 +244,6 @@ def train_callback(
 
 
 # Not for continuous integration runs, but useful for local testing and experimentation
-# a, b = train_callback(epochs=100, batch_size=256, reduced_training=False)
+# a, b = train_callback(epochs=100, batch_size=256, reduced_training=False, disable_training=False, evaluate_model=False)
 # bestmodel is based on the full 100 epoch training run while CI uses a reduced training run with only 10 epochs and runs on GH actions.
 
