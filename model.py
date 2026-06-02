@@ -113,7 +113,13 @@ Output: 2208 probabilities (one per sign)
 ===================================================================================
 """
 
-from tensorflow.keras import layers, models
+from tensorflow.keras import layers, models, Input
+from tensorflow.keras.optimizers import *
+
+num_classes = 2208  # Total number of different ASL signs the AI can recognize
+max_frames = 256  # Maximum video length (in frames)
+
+from tensorflow.keras import layers, models, Input
 from tensorflow.keras.optimizers import *
 
 num_classes = 2208  # Total number of different ASL signs the AI can recognize
@@ -126,45 +132,59 @@ max_frames = 256  # Maximum video length (in frames)
 # effect, so start with the first few layers for coarse adjustments, then fine-tune later layers.
 # =============================================================================
 
-model = models.Sequential(
-    [
-        # Input layer: Receives the hand landmark data
-        layers.Input(shape=(max_frames, 2, 20, 3)),
-        # Flatten spatial dimensions: (max_frames, 2, 20, 3) → (max_frames, 120)
-        # This converts 3D hand positions into a flat sequence for Conv1D
-        layers.Reshape((max_frames, 2 * 20 * 3)),
-        # First convolutional block: Learn short-term motion patterns
-        layers.Conv1D(64, kernel_size=5, activation="relu", padding="same"),
-        layers.BatchNormalization(),
-        layers.MaxPooling1D(pool_size=2),  # max_frames → max_frames/2
-        layers.Dropout(0.2),  # Reduced from 0.3 — less signal killed early on
-        # Second convolutional block: Learn more complex motion combinations
-        layers.Conv1D(128, kernel_size=5, activation="relu", padding="same"),
-        layers.BatchNormalization(),
-        layers.MaxPooling1D(pool_size=2),  # → max_frames/4
-        layers.Dropout(0.2),  # Reduced from 0.3
-        # Third convolutional block: Learn high-level gesture components
-        layers.Conv1D(256, kernel_size=3, activation="relu", padding="same"),
-        layers.BatchNormalization(),
-        layers.MaxPooling1D(pool_size=2),  # → max_frames/8
-        layers.Dropout(0.3),  # Reduced from 0.4
-        # Bidirectional LSTM: Remember context from throughout the video
-        layers.Bidirectional(layers.LSTM(128, return_sequences=True)),
-        layers.Dropout(0.25),  # Reduced from 0.4 — critical for LSTM gradient flow
-        # Second LSTM: Final temporal understanding (outputs final state only)
-        layers.Bidirectional(layers.LSTM(64)),
-        layers.Dropout(0.25),  # Reduced from 0.4
-        # Dense classification head: Combine learned features for 2208-class output
-        # 512 units gives the softmax more representational room for a large class pool
-        layers.Dense(512, activation="relu"),
-        layers.BatchNormalization(),
-        layers.Dropout(0.2),  # Reduced from 0.3
-        layers.Dense(256, activation="relu"),
-        layers.Dropout(0.2),  # Kept light to protect against word-specific overfit
-        # Output layer: One probability per sign (2208 possible signs)
-        layers.Dense(num_classes, activation="softmax"),
-    ]
-)
+inputs = Input(shape=(max_frames, 2, 20, 3))
+
+# ── PPP: Processing Prior to Pancaking ───────────────────────────────────────
+# Reshape so each landmark is its own (x,y,z) input vector
+x = layers.Reshape((max_frames, 2 * 20, 3))(inputs)  # → (max_frames, 40, 3)
+
+# Learn a per-landmark spatial embedding — Dense has no activation maps to store
+# so backprop memory is O(params) not O(frames × spatial_dims)
+x = layers.TimeDistributed(layers.Dense(32, activation="relu"))(
+    x
+)  # → (max_frames, 40, 32)
+
+# Flatten into per-frame feature vector
+x = layers.Reshape((max_frames, 40 * 32))(x)  # → (max_frames, 1280)
+
+# ── First convolutional block: Learn short-term motion patterns ───────────────
+x = layers.Conv1D(64, kernel_size=5, activation="relu", padding="same")(x)
+x = layers.BatchNormalization()(x)
+x = layers.MaxPooling1D(pool_size=2)(x)  # max_frames → max_frames/2
+x = layers.Dropout(0.2)(x)  # Reduced from 0.3 — less signal killed early on
+
+# ── Second convolutional block: Learn more complex motion combinations ────────
+x = layers.Conv1D(128, kernel_size=5, activation="relu", padding="same")(x)
+x = layers.BatchNormalization()(x)
+x = layers.MaxPooling1D(pool_size=2)(x)  # → max_frames/4
+x = layers.Dropout(0.2)(x)  # Reduced from 0.3
+
+# ── Third convolutional block: Learn high-level gesture components ────────────
+x = layers.Conv1D(256, kernel_size=3, activation="relu", padding="same")(x)
+x = layers.BatchNormalization()(x)
+x = layers.MaxPooling1D(pool_size=2)(x)  # → max_frames/8
+x = layers.Dropout(0.3)(x)  # Reduced from 0.4
+
+# ── Bidirectional LSTM: Remember context from throughout the video ────────────
+x = layers.Bidirectional(layers.LSTM(128, return_sequences=True))(x)
+x = layers.Dropout(0.25)(x)  # Reduced from 0.4 — critical for LSTM gradient flow
+
+# ── Second LSTM: Final temporal understanding (outputs final state only) ──────
+x = layers.Bidirectional(layers.LSTM(64))(x)
+x = layers.Dropout(0.25)(x)  # Reduced from 0.4
+
+# ── Dense classification head ─────────────────────────────────────────────────
+# 512 units gives the softmax more representational room for a large class pool
+x = layers.Dense(512, activation="relu")(x)
+x = layers.BatchNormalization()(x)
+x = layers.Dropout(0.2)(x)  # Reduced from 0.3
+x = layers.Dense(256, activation="relu")(x)
+x = layers.Dropout(0.2)(x)  # Kept light to protect against word-specific overfit
+
+# ── Output layer: One probability per sign (2208 possible signs) ──────────────
+outputs = layers.Dense(num_classes, activation="softmax")(x)
+
+model = models.Model(inputs, outputs)
 
 # Compile the model: Set up how it learns
 model.compile(
