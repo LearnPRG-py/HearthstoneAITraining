@@ -131,14 +131,14 @@ try:
 
     invalid_files = [file for file in changed_files if file not in ALLOWED_FILES]
 
-    # if invalid_files:
-    #     print("Failed")
-    #     print("The following files have uncommitted changes:")
-    #     for file in invalid_files:
-    #         print(f" - {file}")
+    if invalid_files:
+        print("Failed")
+        print("The following files have uncommitted changes:")
+        for file in invalid_files:
+            print(f" - {file}")
 
-    #     print("\nOnly model.py is allowed to have changes.")
-    #     sys.exit(1)
+        print("\nOnly model.py is allowed to have changes.")
+        sys.exit(1)
 
     print("Done")
 
@@ -183,14 +183,10 @@ best_loss = float(match.group(2))
 print(f"Previous best accuracy: {best_acc}")
 print(f"Previous best loss: {best_loss}")
 
-# if test_acc < best_acc:
-#     print("Failed")
-#     print(f"Test accuracy {test_acc} is lower than " f"the best accuracy {best_acc}.")
-#     exit(1)
-
 if test_loss > best_loss:
     print("Failed")
     print(f"Test loss {test_loss} is higher than " f"the best loss {best_loss}.")
+    os.system("git reset --hard HEAD")  # Reset any changes
     exit(1)
 
 print("Done! Congrats on a new best model! 🚀🎉")
