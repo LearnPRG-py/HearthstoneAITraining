@@ -25,12 +25,7 @@ except:
     print("Git is not installed. Please install git to proceed.")
     exit(1)
 
-py = input(
-    "[2/6] - Checking for python at python3. Enter to continue or type a different path to change the python call: "
-).strip()
-
-if py == "":
-    py = "python3"
+py = "/usr/local/bin/python3"  # Default path to python change before final commit.
 
 try:
     subprocess.run(
