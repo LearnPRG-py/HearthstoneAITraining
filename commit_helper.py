@@ -25,12 +25,7 @@ except:
     print("Git is not installed. Please install git to proceed.")
     exit(1)
 
-py = input(
-    "[2/6] - Checking for python at python3. Enter to continue or type a different path to change the python call: "
-).strip()
-
-if py == "":
-    py = "python3"
+py = "/usr/local/bin/python3"  # Default path to python change before final commit.
 
 try:
     subprocess.run(
@@ -183,14 +178,10 @@ best_loss = float(match.group(2))
 print(f"Previous best accuracy: {best_acc}")
 print(f"Previous best loss: {best_loss}")
 
-# if test_acc < best_acc:
-#     print("Failed")
-#     print(f"Test accuracy {test_acc} is lower than " f"the best accuracy {best_acc}.")
-#     exit(1)
-
 if test_loss > best_loss:
     print("Failed")
     print(f"Test loss {test_loss} is higher than " f"the best loss {best_loss}.")
+    os.system("git reset --hard HEAD")  # Reset any changes
     exit(1)
 
 print("Done! Congrats on a new best model! 🚀🎉")
