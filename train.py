@@ -12,6 +12,8 @@ import os
 
 print("Import done!")
 
+print("Import done!")
+
 gpus = tf.config.list_physical_devices("GPU")
 print("GPUs:", gpus)
 tf.random.set_seed(42)
