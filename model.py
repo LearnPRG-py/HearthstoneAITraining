@@ -116,13 +116,7 @@ Output: 2208 probabilities (one per sign)
 from tensorflow.keras import layers, models, Input
 from tensorflow.keras.optimizers import *
 
-num_classes = 2208  # Total number of different ASL signs the AI can recognize
-max_frames = 256  # Maximum video length (in frames)
-
-from tensorflow.keras import layers, models, Input
-from tensorflow.keras.optimizers import *
-
-num_classes = 2208  # Total number of different ASL signs the AI can recognize
+num_classes = 101  # Total number of different ASL signs the AI can recognize
 max_frames = 256  # Maximum video length (in frames)
 
 # =============================================================================
@@ -188,7 +182,7 @@ model = models.Model(inputs, outputs)
 
 # Compile the model: Set up how it learns
 model.compile(
-    optimizer=Adam(learning_rate=1.2e-3),  # LR decay handled externally
+    optimizer=Adam(learning_rate=4e-4),  # LR decay handled externally
     loss="sparse_categorical_crossentropy",
     metrics=["accuracy"],
 )
